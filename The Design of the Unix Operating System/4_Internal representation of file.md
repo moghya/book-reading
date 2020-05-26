@@ -70,3 +70,43 @@ inode
 
 * The iget algorithm returns a locked mode structure
 with reference count 1 greater than it had previously been
+
+# Structure of Regular file
+* 2 strategies for storing file
+    - contigeous
+    - non contigeous
+
+* In later approuch inode consist of the block numbers through out the memory where files are stored in chunk
+
+* block Numbers in inode marked as direct and indirect
+
+![title](abc.png)
+
+# 4.3 Directories
+
+* A directory is a file whose data is a sequence of entries, each
+consisting of an mode number and the name of a file contained in the directory
+
+* Every directory contains
+the file names dot and dot-dot ("." and "..") whose mode numbers are those of the
+directory and its parent directory, respectively
+
+* The kernel stores data for a directory just as it stores data for an ordinary file but the kernel reserves
+exclusive right to write a directory, thus insuring its correct structure.
+
+# 4.5 Super block
+
+* The super block consists of the following fields:
+    - the size of the file system,
+    - the number of free blocks in the file system,
+    - a list of free blocks available on the file system,
+    - the index of the next free block in the free block list,
+    - the size of the mode list,
+    - the number of free inodes in the file system,
+    - a list of free inodes in the file system,
+    - the index of the next free Mode in the free mode list,
+    - lock fields for the free block and free mode lists,
+    - a flag indicating that the super block has been modified,
+
+    
+
