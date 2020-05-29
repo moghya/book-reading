@@ -109,4 +109,76 @@ exclusive right to write a directory, thus insuring its correct structure.
     - a flag indicating that the super block has been modified,
 
     
+# 4.6 Inode Assignment to new file
+
+*  File system contains linear list of inodes but doing a liner search on them would be slow
+
+* Thus super block has list of free inode
+
+* Type Field of not used inode is 0
+
+* If the super block list of free inodes is empty, the kernel searches the disk and
+places as many free Mode numbers as possible into the super block
+
+* And remembers the highest inode that it finds so that next time it could search from this node instead of starting
+
+* while releasing the inode mode. If the
+freed mode number is less than the remembered mode number, it "remembers" the
+newly freed mode number, discarding the old remembered mode number from the
+super block
+
+* Ideally, there should never be
+free inodes whose mode number is less than the remembered mode number
+
+* Example of race condition fig - 4.17
+
+* Locking the super block list of inodes while reading in a new set from disk
+prevents other race conditions.
+
+# 4.7 Allocation of Disk Block
+
+* The file
+system super block contains an array that is used to cache the numbers of free disk
+blocks in the file system
+
+* The utility program mkfs organizes
+the data blocks of a file system in a linked list
+* Eeach link of the list is a
+disk block that contains an array of free disk block numbers, and one array entry is
+the number of the next block of the linked list.
+
+* If the allocated
+block is the last available block in the super block cache, the kernel treats it as a
+pointer to a block that contains a list of free blocks.
+
+* he program
+rnIcfs tries to organize the original linked list of free block numbers so that block
+numbers dispensed to a file are near each other.
+
+* Figure
+4.18 depicts block numbers in a regular pattern, presumably based on the disk
+rotation speed.
+
+
+>  figure 14.20 ?
+
+* The algorithms for assigning and freeing modes and disk blocks are similar in
+that the kernel uses the super block as a cache containing indices of free resources,
+block numbers, and mode numbers.
+
+> It maintains a linked list of block numbers
+such that every free block number in the file system appears in some element of the
+linked list, but it maintains no such list of free modes?
+    
+* Reasons
+     -  It can find if inode is empty by looking at if type is 0. But cannot figure out if the data block is free
+
+     > A disk block easily
+holds large lists of free block numbers. But inodes have no convenient place
+for bulk storage of large lists of free mode numbers. ??s
+     
+     - Disk block resources are consumed more quickly than they consume
+inodes, so the apparent lag in performance when searching the disk for free
+inodes is not as critical as it would be for searching for free disk blocks.
+
 
