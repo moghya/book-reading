@@ -77,13 +77,15 @@ number is the number of bytes actually read
  
 *   Kernel sets the following fields so that is doesnot have to pass them as function parameters  
 
-    Io Param | Description|
-    ---------|----------|---------
-    Mode | indicates read or write
-    Count |count of bytes to read or write
-    Offset|byte offset in file
-    Address | target address to copy data, in user or kernel memory
-    Flag| indicates if address is in user or kernel memory
+    |Io Param | Description|
+    |---------|-------------|
+    |Mode | indicates read or write|
+    |Count |count of bytes to read or write
+    |Offset|byte offset in file|
+    |Address | target address to copy data, in user or kernel memory|
+    |Flag| indicates if address is in user or kernel memory|
+
+
 
 
 * When a process invokes the read system call, the kernel locks the inode for the
@@ -122,5 +124,5 @@ malicious (or, perhaps, just errant) user could prevent all other users from log
 in.
 
 * To avoid such problems, the kernel unlocks the inode at the end of each system
-call that uses it and not from time when file is opened to when file is closed 
+call that uses it and not from time when file is opened to when file is closedz 
 
