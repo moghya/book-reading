@@ -179,6 +179,6 @@ for bulk storage of large lists of free mode numbers. ??s
      
      - Disk block resources are consumed more quickly than they consume
 inodes, so the apparent lag in performance when searching the disk for free
-inodes is not as critical as it would be for searching for free disk blocks.
+inodes is not as critical as it would be for searching for free disk block
 
 
