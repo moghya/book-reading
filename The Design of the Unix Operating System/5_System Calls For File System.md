@@ -1,4 +1,4 @@
-# File system Ds
+# File system DS
 
 * The User Descriptor Table
 
@@ -332,3 +332,23 @@ can share access to unnamed pipes
 
 * However, all processes can access a
 named pipe regardless of their relationship, subject to the usual file permissions.
+
+    # 15.12.1. Pipe System call
+    * pipe (fdptr);
+
+    * where fdptr is the pointer to an integer array that will contain the two file
+    descriptors for reading and writing the pipe.
+
+    * It also allocates a pair of user file descriptors
+    and corresponding file table entries for the pipe: one file descriptor for reading
+    from the pipe and the other for writing to the pipe.
+
+    *  It uses the file table so that the
+    interface for the read, write and other system calls is consistent with the interface
+    for regular files
+
+     # 15.12.2. Opening named pipe
+
+     * named pipe is a file whose semantics are the same as those of an unnamed pipe,
+except that it has a directory entry and is accessed by a path name.
+
