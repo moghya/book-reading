@@ -352,3 +352,156 @@ named pipe regardless of their relationship, subject to the usual file permissio
      * named pipe is a file whose semantics are the same as those of an unnamed pipe,
 except that it has a directory entry and is accessed by a path name.
 
+    * Processes open
+named pipes in the same way that they open regular files and, hence, processes that
+are not closely related can communicate.
+
+    * Named pipes r permanent but unnamed pipes are transient
+
+    * process that opens the
+named pipe for reading will sleep until another process opens the named pipe for
+writing, and vice versa
+
+    * Depending on
+whether the process opens the named pipe for reading or writing, the kernel
+awakens other processes that were asleep, waiting for a writer or reader process
+
+    # 5.12.3 Reading and Writing Pipes
+
+    * Processes access data from pipes in FIFO manner
+
+    * if the number of readers
+or writers is greater than 1, they must coordinate use of the pipe with other
+mechanisms
+
+    * The difference between storage allocation for a pipe and regular file is that a pipe uses only the direct blocks of the mode for greater
+efficiency
+
+    * But places no limit on how much data can pipe hold
+
+    *  The number of bytes being written + the number of bytes already in the pipe <= to the pipe's
+capacity.
+        
+        * Process increments files size in file table if it writes beyond EOF
+
+        * Pipes increment pipe size after every write in inode itself
+
+        * If the next byte offset in the pipe were to require
+        use of an indirect block, the kernel adjusts the file offset value in the u area to
+        point to the beginning of the pipe (byte offset 0). 
+        
+        *   >The kernel never overwrites data
+        in the pipe; it can reset the byte offset to 0 because it has already determined that
+        the data will not overflow the pipe's capacity ??
+
+        * When the writer process bas written
+        all its data into the pipe, the kernel updates the pipe's (mode) write pointer so that
+        the next process to write the pipe will proceed from where the last write stopped.
+
+        * The kernel then awakens all other processes that fell asleep waiting to read data
+        from the pipe
+
+    * Reading a pipe
+
+        * if pipe has data read is same as that of regular file
+
+        * initial offset of read pointer is stors in inode from where read takes place
+
+        * After reading each block, the kernel decrements the size of the pipe according to the number of bytes it read 
+        
+        * And it adjusts the user area offset value to wrap around to the
+        beginning of the pipe, if necessary
+
+        * When the read system call completes, the
+        kernel awakens all sleeping writer processes and saves the current read offset in the
+        m ode (not in the file table entry).
+
+    * If the pipe is empty, the process will typically sleep
+until another process writes data into the pipe,
+
+    * If a process writes a pipe and the pipe cannot hold all the data, the kernel
+    marks the inode and goes to sleep waiting for data to drain from the pipe.
+    
+    *   >The exception to this statement is when a process writes
+    an amount of data greater than the pipe capacity (that is, the amount of data that
+can be stored in the Mode direct blocks); ?? Isnt it same as above point ??
+    * In above case, the kernel writes as much data as
+        possible to the pipe and puts the process to sleep until more room becomes
+        available. Thus, it is possible that written data will not be contiguous in the pipe
+
+    * Implementation differs because the kernel stores the
+    read and write offsets in the mode instead of in the file table.
+
+    * This is because that processes can share their
+    values: They cannot share values stored in file table entries because a process gets
+    a new file table entry for each open call.
+
+    # 5.12.4 Closing Pipes
+
+    *  same as for regular file except that the kernel does special processing before releasing
+the pipe's inode
+
+    * The kernel decrements the number of pipe readers or writers,
+    according to the type of the file descriptor
+
+    * If the count of writer processes drops to
+    0 and there are processes asleep waiting to read data from the pipe, the kernel
+    awakens them, and they return from their read calls without reading any data
+
+    * If the count of reader processes drops to 0 and there are processes asleep waiting to
+write data to the pipe, the kernel awakens them and sends them a signal to indicate an error condition.
+
+    * This is because if a process is waiting to read an unnamed pipe and
+there are no more writer processes, there win never be a writer process.
+
+    * If no reader or writer processes
+    access the pipe, the kernel frees all its data blocks and adjusts the mode to indicate
+    that the pipe is empty.
+
+    * See examples on 116
+        ```
+        #include <fentl.h>
+        char string[] = "hello";
+        main(argc, argv)
+        {
+            int argc;
+            char *are[];
+            int fd;
+            char buf[2561];
+            /* create named pipe with read/write permission for all users 'V
+            mknod("fifo", 010777, 0);
+            if (argc == 2)
+            fd open("fifo", O_WRONLY);
+            else
+            fd open("fifo", O_RDONLY);
+            for (;;)
+            if (argc 2)
+            write(fd, string, 6);
+            else
+            read(fd, buf, 6);
+        }
+        ```
+    *  If invoked with a second (dummy) argument, it continually writes the string "hello" into the pipe; 
+    
+    * if invoked without a second argument, it reads the
+    named pipe. 
+    
+    * The two processes are invocations of the identical program and have
+    secretly agreed to communicate through the named pipe "fifo", but they need not
+    be related. Other users could execute the program and participate in (or interfere
+    with) the conversation.
+# Difference in named and unnamed pipes
+> https://www.youtube.com/watch?v=dhFkwGRSVGk
+
+1. As suggested by their names, a named type has a specific name which can be given to it by the user. Named pipe if referred through this name only by the reader and writer. All instances of a named pipe share the same pipe name.
+On the other hand, unnamed pipes is not given a name. It is accessible through two file descriptors that are created through the function pipe(fd[2]), where fd[1] signifies the write file descriptor, and fd[0] describes the read file descriptor.
+
+2. An unnamed pipe is only used for communication between a child and it’s parent process, while a named pipe can be used for communication between two unnamed process as well. Processes of different ancestry can share data through a named pipe.
+
+3. A named pipe exists in the file system. After input-output has been performed by the sharing processes, the pipe still exists in the file system independently of the process, and can be used for communication between some other processes.
+On the other hand, an unnamed pipe vanishes as soon as it is closed, or one of the process (parent or child) completes execution.
+
+4. Named pipes can be used to provide communication between processes on the same computer or between processes on different computers across a network, as in case of a distributed system. Unnamed pipes are always local; they cannot be used for communication over a network.
+
+5. A Named pipe can have multiple process communicating through it, like multiple clients connected to one server. On the other hand, an unnamed pipe is a one-way pipe that typically transfers data between a parent process and a child process.
+
