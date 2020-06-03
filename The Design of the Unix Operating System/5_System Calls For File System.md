@@ -693,4 +693,298 @@ via the locked directory) would deadlock. Thus, if the file were "Thin" or
 on the system would be disastrous.
 
 
+# 5.16 UNLINK
 
+* The unlink system call removes a directory entry for a file.
+
+* myfile. If the file being unlinked is the last link of the file, the kernel
+eventually frees its data blocks. 
+
+* However, if the file had several links, it is still
+accessible by its other names.
+
+* The kernel first uses a
+variation of algorithm namei to find the file that it must unlink, but instead of
+returning its inode, it returns the inode of the parent directory
+
+* the kernel clears the file name from the parent directory: Writing a 0
+for the value of the inode number suffices to clear the slot in the directory
+
+
+* The
+kernel then does a synchronous write of the directory to disk to ensure that the file
+is inaccessible by its old name, 
+
+* It decrements the link count, and releases the in-core
+m odes of the parent directory and the unlinked file via algorithm iput.
+
+* if the reference
+count drops to 0, and if the link count is 0, the kernel reclaims the disk blocks
+occupied by the file.
+
+    # 5.16.1 File Systenrb Consistency
+    
+    * The kernel orders its writes to disk to minimize file system corruption in event of
+system failure
+     
+     * when it removes a file name from its parent directory,
+it writes the directory synchronously to the disk — before it destroys the contents of
+the file and frees the mode
+
+    * If the system were to crash before the file contents
+were removed, damage to the file system would be minimal: There would be an
+inode that would have a link count 1 greater than the number of directory entries
+that access it, but all other paths to the file would still be legal.
+    
+    * If the directory
+write were not synchronous, it would be possible for the directory entry on disk to
+point to a free (or reallocated!) inode after a system crash.
+
+    * In particular, if the file name was that of the last link to
+the file, it would refer to an unallocated mode.
+
+    * System damage is clearly less
+severe and easier to correct in the first case
+
+    * see example on page 137
+
+    * The kernel also frees inodes and disk blocks in a specific order to minimize
+corruption in event of system failure.
+
+    * When removing the contents of a file and
+clearing its mode, it is possible to free the blocks containing the file data first, or it
+is possible to free and write out the mode first
+
+    * result for both is same except for the case when system crashes
+
+    * Suppose the kernel
+first frees the disk blocks of a file and crashes.
+
+        * When the system is rebooted, the
+Mode still contains references to the old disk blocks, which may no longer contain
+data relevant to the file
+
+        * It is also possible that other files were
+assigned those disk blocks. 
+        
+        * The effort to clean the file system with the fsek
+program would be great.
+
+    * If the system first writes the mode to disk and
+the system crashes
+
+        * The data blocks that previously belonged to the file
+would be inaccessible to the system, but users would notice no apparent corruption
+
+        * The fsck program also finds the task of reclaiming unlinked disk blocks easier than
+the clean-up it would have to do for the first sequence of events.
+
+    # 5.16.2 Race Conditions
+
+    * The system call, particularly when unlinking rmdir command removes a directory after verifying that the directory contains no files
+
+    * rmdir runs at user level thus its not atomic
+
+    * Hence, another process could crew a file in the directory after rmdir
+determined that the directory was empty
+
+    * only solution is file and record locking
+
+    * Recall the algorithm for the link system call and how the kernel unlocks the
+ inode before completion of the call. 
+    *  If another process should unlink the file while
+the inode lock is free, it would only-decrement the link count; since the link count
+had been incremented before unlinking the inode, the count would still be greater
+than 0. 
+
+    *   Hence, the file cannot be removed, and the system is safe. 
+    
+    * The condition is
+equivalent to the case where the unlink happens immediately after the link call
+completes.
+
+    * Another race condition exists in the case where one process is converting a file
+path name to an inode using algorithm namei and another process is removing a
+directory in that path
+
+    * See example on page 135
+
+    * A process can unlink a file while another process has the file open
+
+    * Also unlinking can happen after open sys call
+    
+    * Since the kernel
+unlocks the mode at the end of the open call, the unlink call will succeed.
+
+    * No other processes will be able to access
+the now unlinked file.
+
+    * since the open system call had incremented the
+Mode reference count, the kernel does not clear the file contents when executing the
+(put algorithm at the conclusion of the unlink call
+
+    * So the opening process can do
+all the normal file operations. But when it closes the file, the mode reference count drops to 0 in iput,
+and the kernel clears the contents of the file
+
+    * In short, the process that had open cd
+the file proceeds as if the unlink did not occur, and the unlink happens as if the file
+were not open.
+
+    * consider following example
+
+        ```
+            #include < sys/types.h >
+            #include < sys/stat.h>
+            #include < fcntl.h>
+            main (argc, argv)
+            int argc;
+            char *argv[]; ·
+            int fd;
+            char buf[ I 0241;
+            struct stat statbuf;
+            UNLINK
+            if (argc != 2) /* need a parameter */
+            exit O ;
+            fd = open (argv[ I ], O_RDONLY) ;
+            if (fd === - I ) /* open fails * /
+            exit O ;
+            i f (unlink (argv[ I ]) -- - I ) /* unlink file just opened */
+            exit O ;
+            i f (stat (argv[ I ], &statbuf) ...... - I ) /* stat the file by name*/
+            printf("stat %s fails as it should\n ", argv[ I ]) ·
+            else
+            · printf("stat %s succeeded!!!!\n", argv[ I ]) ;
+            i f (fstat(fd, &statbuO ....... - I ) /* stat the file by fd */
+            printf("fstat %s fails!!!\n", argv[ I ]) ;
+            else
+            printf("fstat %s succeeds as it should\n", argv[ I ]) ;
+            while (read (fd, buf, sizeof(buf) ) > 0) /* read open/unlinked file */
+            printf("%I 024s", buf) ; /* prints IK byte field */     
+
+        ```
+
+        * a process opens a file supplied as a parameter and
+then unlinks the file it just open cd. 
+        
+        * The stat call fails because the original path name no longer refers to a file after the unlink
+
+        * but the fstat call succeeds because it gets to
+the inode via the file descriptor.
+
+        * After the close in exit , the file no. longer exists
+
+
+# 5.17 FILE SYSTEM ABSTRACTIONS
+
+* Weinberger introduced file system types to support his network file system
+
+* File system types allow the kernel to
+support multiple file systems simultaneously, such as network file systems or even file systems of other operating systems
+
+* same sys call but the kernel maps a generic set of file operations Mto
+operations specific to each file system type.
+
+* The inode is the interface between the abstract file system and the specific file
+system.
+
+* Generic in-core mode contains data that is independent of particular file
+systems, and points to a file-system-specific mode that contains file-system-specific
+data.
+
+* The file-system-specific mode contains information such as access permissions
+and block layout, but the generic mode contains the device number, Mode number,
+file type, size, owner, and reference count. Other data that is file-system-specific
+includes the super block and directory structures
+
+* The latter inode
+presumably contains enough information to identify a file on a remote system. 
+
+* A file system may not have an inode-like structure; but the file-system-specific code
+manufactures an object that satisfies UNIX file system semantics and allocates its
+"mode" when the kernel allocates a generic mode.
+
+* When the kernel wants to access a file, it makes
+an indirect function call, based on the file system type and the operation (see
+Figure 5.34).
+
+# 5.18 FILE SYSTEM MAINTENANCE
+
+* kernel maintains consistency in file sys but incase of power loss file sys may be left inconsistent
+
+* The command fsck
+checks for such inconsistencies and repairs the file system if necessary
+
+* It accesses
+the file system by its block or raw interface (Chapter 10) and bypasses the regular
+file access methods.
+
+* When a file system is originally set up, all disk blocks are on the free list.
+
+* When a disk block is assigned for use, the kernel removes it from the free list and
+assigns it to an mode.
+
+*  The kernel may not reassign the disk block to another Mode
+until the disk block has been returned to the free list
+
+* Consider the possibilities if the
+kernel freed a disk block in a file, returning the block number to the in-core copy of
+the super block, and allocated the disk block to a new file. 
+
+* If the kernel wrote the
+inode and blocks of the new file to disk but crashed before updating the inode of
+the old file to disk, the two modes would address the same disk block number
+
+* Similarly, if the kernel wrote the super block and its free list to disk and crashed
+before writing
+
+* _**If a block number is not on the free list of blocks nor contained in a file, the file
+system is inconsistent because, as mentioned above, all blocks must appear
+somewhere.**_
+
+* This situation could happen if a block was removed from a file and
+placed on the super block free list. If the old file was written to disk and the
+system crashed before the super block was written to disk, the block would not
+appear on any lists stored on disk.
+
+* An inode may have a non-0 link count, but its mode number may not exist in
+any directories in the file system.
+
+    * If the system crashes after creating a pipe or after creating a
+file but before creating its directory entry, the mode will have its link field set even
+though it does not appear to be in the file system. 
+
+    * The problem could also arise if a
+directory were unlinked before making sure that all files contained in the directory
+were unlinked.
+
+
+* If the format of an Mode is incorrect (for instance, if the file type field has an
+undefined value), something is wrong. 
+
+    * This could happen if an administrator
+    mounted an improperly formatted file system. 
+
+    * The kernel accesses disk blocks that
+    it thinks contain Modes but in reality contain data.
+
+* If an Mode number appears in a directory entry but the mode is free, the file
+system is inconsistent because an Mode number that appears in a directory entry
+should be that of an allocated Mode.
+
+    * This could happen if the kernel was creating
+a new file and wrote the directory entry to disk but did not write the Mode to disk
+before the crash.
+
+    *  It could also occur if a process unlinked a file and wrote the
+freed mode to disk, but did not write the directory element to disk before it
+crashed. 
+
+    * These situations are avoided by ordering the write operations properly.
+
+
+* If the number of free blocks or free modes recorded in the super block does not conform to the number that exist on disk, the file system is inconsistent.
+
+* The
+summary information in the super block must always be consistent with the state of
+the file system.
